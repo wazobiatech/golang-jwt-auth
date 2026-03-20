@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wazobiatech/auth-middleware-go/pkg/utils"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/utils"
 )
 
 // JWK represents a JSON Web Key

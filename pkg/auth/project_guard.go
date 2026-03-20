@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/wazobiatech/auth-middleware-go/pkg/client"
-	"github.com/wazobiatech/auth-middleware-go/pkg/jwks"
-	"github.com/wazobiatech/auth-middleware-go/pkg/redis"
-	"github.com/wazobiatech/auth-middleware-go/pkg/types"
-	"github.com/wazobiatech/auth-middleware-go/pkg/utils"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/client"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/jwks"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/redis"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/types"
+	"github.com/wazobiatech/golang-jwt-auth/pkg/utils"
 )
 
 // ProjectAuthMiddleware provides Redis-cached JWKS authentication for platform, project & service tokens
