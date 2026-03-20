@@ -53,9 +53,9 @@ func loadConfig() *Config {
 		SignatureSharedSecret: getEnv("SIGNATURE_SHARED_SECRET", ""),
 
 		// Redis configuration
-		RedisURL:      getEnv("REDIS_URL", "localhost:6379"),
-		RedisPassword: getEnv("REDIS_PASSWORD", ""),
-		RedisDB:       getEnvAsInt("REDIS_DB", 0),
+		RedisURL:      getEnv("AUTH_REDIS_HOST", "localhost:6379"),
+		RedisPassword: getEnv("AUTH_REDIS_PASSWORD", ""),
+		RedisDB:       getEnvAsInt("AUTH_REDIS_DB", 0),
 
 		// Service credentials
 		ClientID:     getEnv("CLIENT_ID", ""),
@@ -197,8 +197,8 @@ func UpdateConfig(updates map[string]interface{}) {
 func PrintConfig() {
 	log.Println("Auth Middleware Configuration:")
 	log.Printf("  MERCURY_BASE_URL: %s", config.MercuryBaseURL)
-	log.Printf("  REDIS_URL: %s", config.RedisURL)
-	log.Printf("  REDIS_DB: %d", config.RedisDB)
+	log.Printf("  AUTH_REDIS_HOST: %s", config.RedisURL)
+	log.Printf("  AUTH_REDIS_DB: %d", config.RedisDB)
 	log.Printf("  CLIENT_ID: %s", maskSecret(config.ClientID))
 	log.Printf("  CACHE_EXPIRY_TIME: %d seconds", config.CacheExpiryTime)
 	log.Printf("  JWKS_CACHE_TTL: %d seconds", config.JWKSCacheTTL)
