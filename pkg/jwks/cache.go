@@ -1,6 +1,7 @@
 package jwks
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wazobiatech/golang-jwt-auth/pkg/redis"
 	"github.com/wazobiatech/golang-jwt-auth/pkg/utils"
 )
 
@@ -143,9 +145,10 @@ func (jwk *JWK) RSAPublicKey() (*rsa.PublicKey, error) {
 
 // Cache manages JWKS caching with automatic expiry and refresh
 type Cache struct {
-	entries map[string]*CacheEntry
-	mutex   sync.RWMutex
-	client  *http.Client
+	entries      map[string]*CacheEntry
+	mutex        sync.RWMutex
+	client       *http.Client
+	redisClient  *redis.Client
 }
 
 // CacheEntry represents a cached JWKS entry
@@ -158,15 +161,17 @@ type CacheEntry struct {
 // NewCache creates a new JWKS cache instance
 func NewCache() *Cache {
 	return &Cache{
-		entries: make(map[string]*CacheEntry),
+		entries:     make(map[string]*CacheEntry),
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		redisClient: redis.NewClient(),
 	}
 }
 
 // GetOrFetch retrieves JWKS from cache or fetches from remote if expired/missing
 func (c *Cache) GetOrFetch(cacheKey, jwksUri, path string) (*KeyStore, error) {
+	// First check in-memory cache
 	c.mutex.RLock()
 	entry, exists := c.entries[cacheKey]
 	c.mutex.RUnlock()
@@ -183,7 +188,30 @@ func (c *Cache) GetOrFetch(cacheKey, jwksUri, path string) (*KeyStore, error) {
 		}
 	}
 
-	log.Printf("Fetching JWKS from %s", jwksUri)
+	// Try to fetch from Redis cache
+	redisKey := fmt.Sprintf("jwks:%s", cacheKey)
+	cachedData, err := c.redisClient.Get(redisKey)
+	if err == nil && cachedData != "" {
+		// Deserialize from Redis
+		var jwkSet JWKSet
+		if err := json.Unmarshal([]byte(cachedData), &jwkSet); err == nil {
+			keyStore := NewKeyStore()
+			if err := keyStore.LoadFromJWKSet(&jwkSet); err == nil {
+				// Update in-memory cache
+				c.mutex.Lock()
+				c.entries[cacheKey] = &CacheEntry{
+					KeyStore:  keyStore,
+					ExpiresAt: time.Now().Add(10 * time.Minute),
+				}
+				c.mutex.Unlock()
+				log.Printf("JWKS found in Redis cache, key: %s", cacheKey)
+				return keyStore, nil
+			}
+		}
+	}
+
+	log.Printf("JWKS cache miss in Redis, key: %s", cacheKey)
+	log.Printf("Fetching JWKS from Mercury")
 
 	// Fetch fresh JWKS
 	keyStore, err := c.fetchAndCache(jwksUri, path, cacheKey)
@@ -255,13 +283,23 @@ func (c *Cache) fetchAndCache(jwksUri, path, cacheKey string) (*KeyStore, error)
 		return nil, fmt.Errorf("failed to load JWKS: %w", err)
 	}
 
-	// Cache the result
+	// Cache in memory
 	c.mutex.Lock()
 	c.entries[cacheKey] = &CacheEntry{
 		KeyStore:  keyStore,
-		ExpiresAt: time.Now().Add(10 * time.Minute), // 10 minutes cache
+		ExpiresAt: time.Now().Add(10 * time.Minute),
 	}
 	c.mutex.Unlock()
+
+	// Cache in Redis
+	if jwkBytes, err := json.Marshal(jwkSet); err == nil {
+		redisKey := fmt.Sprintf("jwks:%s", cacheKey)
+		if err := c.redisClient.Set(redisKey, string(jwkBytes), 10*time.Minute); err == nil {
+			log.Printf("JWKS cached to Redis with key: %s", cacheKey)
+		} else {
+			log.Printf("Failed to cache JWKS to Redis: %v", err)
+		}
+	}
 
 	log.Printf("JWKS cached successfully with key: %s", cacheKey)
 
@@ -298,6 +336,12 @@ func (c *Cache) InvalidateCache(cacheKey string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	delete(c.entries, cacheKey)
+
+	// Also invalidate Redis cache
+	redisKey := fmt.Sprintf("jwks:%s", cacheKey)
+	if err := c.redisClient.Del(redisKey); err != nil {
+		log.Printf("Failed to invalidate Redis cache for key %s: %v", cacheKey, err)
+	}
 }
 
 // ClearCache removes all cached entries
