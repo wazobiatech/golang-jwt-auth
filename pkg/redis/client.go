@@ -52,6 +52,13 @@ func NewClient() *Client {
 			config: config,
 		}
 
+		// Log connection details
+		authStatus := "no password"
+		if config.RedisPassword != "" {
+			authStatus = "with password"
+		}
+		log.Printf("Redis client connecting to host=%s db=%d %s", config.RedisURL, config.RedisDB, authStatus)
+
 		// Test connection
 		ctx := context.Background()
 		if err := instance.Ping(ctx); err != nil {
