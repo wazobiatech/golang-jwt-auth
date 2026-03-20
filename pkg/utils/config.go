@@ -53,9 +53,9 @@ func loadConfig() *Config {
 		SignatureSharedSecret: getEnv("SIGNATURE_SHARED_SECRET", ""),
 
 		// Redis configuration
-		RedisURL:      getEnv("REDIS_URL", "redis://localhost:6379"),
-		RedisPassword: getEnv("REDIS_PASSWORD", ""),
-		RedisDB:       getEnvAsInt("REDIS_DB", 0),
+		RedisURL:      getEnv("AUTH_REDIS_HOST", "localhost:6379"),
+		RedisPassword: getEnv("AUTH_REDIS_PASSWORD", ""),
+		RedisDB:       getEnvAsInt("AUTH_REDIS_DB", 0),
 
 		// Service credentials
 		ClientID:     getEnv("CLIENT_ID", ""),
@@ -88,7 +88,7 @@ func validateConfig(cfg *Config) {
 	}
 	
 	if cfg.RedisURL == "" {
-		log.Println("Warning: REDIS_URL is not set, using default")
+		log.Println("Warning: AUTH_REDIS_HOST is not set, using default")
 	}
 	
 	if cfg.ClientID == "" {
@@ -157,15 +157,15 @@ func UpdateConfig(updates map[string]interface{}) {
 			if v, ok := value.(string); ok {
 				config.SignatureSharedSecret = v
 			}
-		case "REDIS_URL":
+		case "AUTH_REDIS_HOST":
 			if v, ok := value.(string); ok {
 				config.RedisURL = v
 			}
-		case "REDIS_PASSWORD":
+		case "AUTH_REDIS_PASSWORD":
 			if v, ok := value.(string); ok {
 				config.RedisPassword = v
 			}
-		case "REDIS_DB":
+		case "AUTH_REDIS_DB":
 			if v, ok := value.(int); ok {
 				config.RedisDB = v
 			}
@@ -197,8 +197,8 @@ func UpdateConfig(updates map[string]interface{}) {
 func PrintConfig() {
 	log.Println("Auth Middleware Configuration:")
 	log.Printf("  MERCURY_BASE_URL: %s", config.MercuryBaseURL)
-	log.Printf("  REDIS_URL: %s", config.RedisURL)
-	log.Printf("  REDIS_DB: %d", config.RedisDB)
+	log.Printf("  AUTH_REDIS_HOST: %s", config.RedisURL)
+	log.Printf("  AUTH_REDIS_DB: %d", config.RedisDB)
 	log.Printf("  CLIENT_ID: %s", maskSecret(config.ClientID))
 	log.Printf("  CACHE_EXPIRY_TIME: %d seconds", config.CacheExpiryTime)
 	log.Printf("  JWKS_CACHE_TTL: %d seconds", config.JWKSCacheTTL)
